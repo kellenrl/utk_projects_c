@@ -1,0 +1,54 @@
+#!/bin/bash
+
+dir=/home/cosc360/lab9/gs
+port=50000
+program=chat_server
+topics="Bridge Baseball Politics Video-Games Art Music Movies Food Woodworking American-Idol"
+
+sigint_handler() {
+    if ps -p $pid > /dev/null; then
+		kill $pid
+    fi
+}
+
+if [ $# -ne 1 ]; then
+    echo 'usage: gradescript-auto problem_number (1-100)' >&2
+    exit 1
+fi
+
+if [ "$1" -gt 0 -a "$1" -le 100 ]; then
+    enum=`echo $1 | awk '{ printf "%03d\n", $1 }'`
+else
+    echo 'usage: gradescript-auto problem_number (1-100)' >&2
+    exit 1
+fi
+
+if [ ! -f ./$program ]; then
+    echo "$program does not exist in your directory."
+    exit 1
+fi
+
+while lsof -Pi :$port -sTCP:LISTEN 2>&1 > /dev/null; do
+    ((port=$port+1))
+done
+
+while [[ $(netstat -npta --tcp 2> /dev/null | grep $port | head -n 1 | awk '{ print $(NF - 1) }') == "TIME_WAIT" ]]; do
+    ((port=$port+1))
+done
+
+echo "Using port $port"
+
+./$program $port $topics 2>&1 > server.log &
+pid=$!
+trap sigint_handler SIGINT
+
+#if ! ps -p $pid > /dev/null; then
+#    echo ""
+#    echo "Your program ended prematurely, make sure that you didn't exit early or segfault."
+#    echo ""
+#    exit 255
+#fi
+
+$dir/gradescript $enum localhost $port
+
+sigint_handler
